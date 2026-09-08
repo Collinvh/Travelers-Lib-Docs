@@ -1,0 +1,17 @@
+{
+  "how_to": {
+    "name": "How to"
+  },
+  "attributes": {
+    "name": "Attributes"
+  },
+  "items": {
+    "name": "Item Interfaces"
+  },
+  "animator": {
+    "name": "Animator"
+  },
+  "tasks": {
+    "name": "Task Providers"
+  }
+}
