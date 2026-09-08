@@ -1,0 +1,102 @@
+# Item Interfaces
+
+<Callout variant="warning">
+    Do note this continues on AFTER [**attributes**](_attributes), if you want to follow along start there!
+</Callout>
+
+## Basic Steps
+
+To start off let's make an ExampleItemInterface
+
+<CodeTabs>
+    ```java !!tabs ExampleItemInterface
+    public class ExampleItemInterface<T extends SmartAnimalBase> implements TravelersItemInterface<T> {
+        private Supplier<Item> spawnEgg;
+
+        private Supplier<Item> rawMeat;
+        private Supplier<Item> cookedMeat;
+
+        @Override
+        public void init(TravelersAnimalAttributes<T> travelersAnimalAttributes, TravelersAnimal<T> travelersAnimal) {
+            var name = travelersAnimalAttributes.getAnimalName();
+            rawMeat = ExampleItemRegistry.registerItem(name + "_raw", () -> new Item(new Item.Properties().food(new FoodProperties.Builder().build())));
+            cookedMeat = ExampleItemRegistry.registerItem(name + "_cooked", () -> new Item(new Item.Properties().food(new FoodProperties.Builder().build())));
+        }
+
+        public Supplier<Item> getRawMeat() {
+            return rawMeat;
+        }
+
+        public Supplier<Item> getCookedMeat() {
+            return cookedMeat;
+        }
+
+        @Override
+        public void initSpawnEgg(TravelersAnimalAttributes<?> travelersAnimalAttributes, TravelersAnimal<?> travelersAnimal) {
+            // This runs later because you NEED the entityType to be initialized first.
+            spawnEgg = ExampleItemRegistry.registerItem(travelersAnimalAttributes.getAnimalName() + "_spawn_egg", () ->
+            // Cast is needed because the entityType's class is unknown
+            new DeferredSpawnEggItem(() -> (EntityType<? extends Mob>)
+                travelersAnimal.getEntityType().get(), 0, 0, new Item.Properties()));
+        }
+
+        public Supplier<Item> getSpawnEgg() {
+            return spawnEgg;
+        }
+
+        @Override
+        public HashMap<ItemLike, DropObject> initDrops(TravelersItemInterface<T> travelersItemInterface, HashMap<ItemLike, DropObject> hashMap) {
+            // Unused in this example
+            return null;
+        }
+
+        @Override
+        public @Nullable ItemStack getPickItem(SmartAnimalBase smartAnimalBase) {
+            // The item the entity gets if you middle-click it.
+            return spawnEgg.get().getDefaultInstance();
+        }
+    }
+```
+```java !!tabs AbstractExampleAnimal
+public abstract class AbstractExampleAnimal<T extends SmartAnimalBase> extends TravelersAnimal<T> {
+    public AbstractExampleAnimal(String name) {
+        super(new ExampleAnimalAttributes<>(name, "{YOUR_MOD_ID}"));
+        init();
+
+        // Add the item interface here
+        setItemInterface(new ExampleItemInterface<>());
+
+        // Initialize it after setting
+        getItems().init(getAnimalAttributes(), this);
+
+        // Since this is safe to do, we automatically register the entity here too!
+        TravelersAnimalRegistry.register(this);
+
+        // Since the register method above already sets the EntityType its safe to do AFTER
+        getItems().initSpawnEgg(getAnimalAttributes(), this);
+    }
+
+
+    // Otherwise the getter wouldn't get the new attributes we've just set
+    @Override
+    public ExampleAnimalAttributes<T> getAnimalAttributes() {
+        return (ExampleAnimalAttributes<T>) super.getAnimalAttributes();
+    }
+
+    protected void init() {
+        var animalAttributes = getAnimalAttributes();
+
+        applyTravelersProperties(animalAttributes.getEntityAttributeProperties(), animalAttributes.getEntityBaseProperties());
+        applyExampleAttributes(animalAttributes.getExampleAttributes());
+    }
+
+    protected abstract void applyExampleAttributes(ExampleAttributes exampleAttributes);
+
+    protected abstract void applyTravelersProperties(EntityAttributeProperties<T> attributes, EntityBaseProperties<T> base);
+}
+```
+</CodeTabs>
+
+Besides this it isn't really that hard to understand, it's an simple class that helps with automatic registries.
+
+Do note this uses an part of the registry guide.

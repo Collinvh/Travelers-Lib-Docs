@@ -1,0 +1,139 @@
+# Animator
+
+<Callout variant="warning">
+    Do note this continues on AFTER [**items**](_items), if you want to follow along start there!
+</Callout>
+
+## Basic Animation Example
+
+<CodeTabs>
+    ```java !!tabs ExampleAnimator
+    public class ExampleAnimator<T extends SmartAnimalBase> extends TravelersAnimator<T> {
+        // Register a base controller into the Travelers System
+        public static final TravelersAnimationControllers.AnimationController base_controller = TravelersAnimationControllers.register("base_controller", 10);
+
+        public static final TravelersAnimationDefinition IDLE = new TravelersAnimationDefinition("animation.idle", base_controller, PlayBehaviourType.LOOP);
+        public static final TravelersAnimationDefinition WALK = new TravelersAnimationDefinition("animation.walk", base_controller, PlayBehaviourType.LOOP);
+        public static final TravelersAnimationDefinition HURT = new TravelersAnimationDefinition("animation.hurt", base_controller, PlayBehaviourType.PLAY_ONCE);
+
+        @Override
+        public void animate(SmartAnimalBase smartAnimalBase, TravelersMoveAnalysis travelersMoveAnalysis, TravelersAnimalAnimationModule travelersAnimalAnimationModule) {
+            if(travelersMoveAnalysis.isMoving()) {
+                WALK.sendForEntity(smartAnimalBase);
+            } else {
+                IDLE.sendForEntity(smartAnimalBase);
+            }
+        }
+
+        @Override
+        public void animateServer(T base, TravelersMoveAnalysis moveAnalysis, TravelersAnimalAnimationModule animationManager) {
+            if(base.getLastHurtByMob() != null) {
+                HURT.sendForEntity(base);
+            }
+        }
+    }
+    ```
+    ```java !!tabs AbstractExampleAnimal
+    public abstract class AbstractExampleAnimal<T extends SmartAnimalBase> extends TravelersAnimal<T> {
+        public AbstractExampleAnimal(String name) {
+            super(new ExampleAnimalAttributes<>(name, "{YOUR_MOD_ID}"));
+            init();
+            // Since this is safe to do, we automatically register the entity here too!
+            setItemInterface(new ExampleItemInterface<>());
+
+            getItems().init(getAnimalAttributes(), this);
+
+            TravelersAnimalRegistry.register(this);
+
+            getItems().initSpawnEgg(getAnimalAttributes(), this);
+
+            // Add the animator here
+            setAnimator(new ExampleAnimator<>());
+        }
+
+        // Otherwise the getter wouldn't get the new attributes we've just set
+        @Override
+        public ExampleAnimalAttributes<T> getAnimalAttributes() {
+            return (ExampleAnimalAttributes<T>) super.getAnimalAttributes();
+        }
+
+        protected void init() {
+            var animalAttributes = getAnimalAttributes();
+
+            applyTravelersProperties(animalAttributes.getEntityAttributeProperties(), animalAttributes.getEntityBaseProperties());
+            applyExampleAttributes(animalAttributes.getExampleAttributes());
+
+            // Add the controller so it auto registers with the entity
+            getAnimalAttributes().getEntityBaseProperties().addAnimationController(ExampleAnimator.base_controller);
+        }
+
+        protected abstract void applyExampleAttributes(ExampleAttributes exampleAttributes);
+
+        protected abstract void applyTravelersProperties(EntityAttributeProperties<T> attributes, EntityBaseProperties<T> base);
+    }
+    ```
+</CodeTabs>
+
+You also have access to the ```TravelersAnimalAnimationModule```
+This is for an STATE-MACHINE esk animation system:
+
+<CodeTabs>
+    ```java !!tabs Jurassic Saga Example
+    @Override
+    public void animateServer(ExampleEntity base, TravelersMoveAnalysis moveAnalysis, TravelersAnimalAnimationModule animationManager) {
+        // The wrap tells the transition how long an animation is (if an animation should loop, you don't need to give time in ticks)
+        if (animationManager.playTransition(base.isSleeping(), SLEEP_IN.wrap(63), SLEEP_LOOP.wrap(), SLEEP_OUT.wrap(39))) {
+            return;
+        }
+
+        // The wrap tells the transition how long an animation is (if an animation should loop, you don't need to give time in ticks)
+        if (animationManager.playTransition(base.isResting(), REST_IN.wrap(36), REST_LOOP.wrap(), REST_OUT.wrap(19))) {
+            return;
+        }
+        if (base.isDead()) return;
+
+        if (base.curInjuredTicks > 0) {
+            INJURED.sendForEntity(base);
+        }
+    }
+    ```
+</CodeTabs>
+
+We also provide support for client animators!
+
+## Client Animators
+
+Client animators control the neck and tail code
+
+We'll not be making an specific example for this, but i will show you an example from ```Jurassic Saga```
+
+<CodeTabs>
+    ```java !!tabs Registry
+    // Only run this on the CLIENT side.
+    public static void init() {
+        TravelersAnimationMap.register(JP1Animals.DILOPHOSAURUS, new DilophosaurusAnimator());
+    }
+    ```
+    ```java !!tabs DilophosaurusAnimator
+    public class DilophosaurusAnimator extends TravelersClientAnimator {
+        @Override
+            public void updateModel(SmartAnimalBase animatable, float partialTick, TravelersAnimationData data) {
+            var headBones = getBones(data, "body1", "body2", "neck1", "head");
+            var tailBones = getBones(data, "tail_1", "tail_2", "tail_3", "tail_4");
+
+            // 2f is the rotationDivisor, it devides the yaw/pitch delta before delivering it.
+            faceTarget(animatable, partialTick, 2F, headBones);
+            // Applies the calculated chain swing to the bones given
+            data.chainBuffer.applyChainSwingBuffer(partialTick, tailBones);
+        }
+
+        @Override
+        public void clientTick(SmartAnimalBase base) {
+            super.clientTick(base);
+            // Calculates the yaw/pitch difference every tick
+            getData(base).chainBuffer.calculateChainSwingBuffer(180, 3, 0.5f, 0.8F, base);
+        }
+    }
+
+    ```
+</CodeTabs>

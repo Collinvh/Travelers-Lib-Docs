@@ -1,0 +1,138 @@
+# Registry System Basics
+A basic rundown on how the registry system works
+## How do I make a registry?
+
+<CodeTabs>
+    ```java !!tabs Block Registry Example
+    public static final TravelersRegistry<Block> BLOCKS = new TravelersRegistry<>(BuiltInRegistries.BLOCK, {YOUR_MOD_ID});
+    ```
+    ```java !!tabs Item Registry Example
+    public static final TravelersRegistry<Item> ITEMS = new TravelersRegistry<>(BuiltInRegistries.ITEM, {YOUR_MOD_ID});
+    ```
+    ```java !!tabs Entity Type Example
+    public static final TravelersRegistry<EntityType<?>> ENTITY_TYPES = new TravelersRegistry<>(BuiltInRegistries.ENTITY_TYPE, {YOUR_MOD_ID});
+    ```
+</CodeTabs>
+
+As shown above, any of the BuiltInRegistries can be used with TravelersRegistry. Some registries require a type parameter inside the angle brackets ```(\<\>)``` for example, ```EntityType\<?\>``` uses a wildcard  since the specific entity type isn't known at this point.
+<p></p>
+
+If you need the objects for an later purpose (like going thru them in DataGen) you can store the values to the registry like this:
+<CodeTabs>
+    ```java !!tabs Block Registry Example
+    public static final TravelersRegistry<Block> BLOCKS = new TravelersRegistry<>(BuiltInRegistries.BLOCK, {YOUR_MOD_ID}).storeValues();
+    ```
+    ```java !!tabs Item Registry Example
+    public static final TravelersRegistry<Item> ITEMS = new TravelersRegistry<>(BuiltInRegistries.ITEM, {YOUR_MOD_ID}).storeValues();
+    ```
+    ```java !!tabs Entity Type Example
+    public static final TravelersRegistry<EntityType<?>> ENTITY_TYPES = new TravelersRegistry<>(BuiltInRegistries.ENTITY_TYPE, {YOUR_MOD_ID}).storeValues();
+            ```
+</CodeTabs>
+
+It's in theory the same as before but this time we added ```.storeValues()``` at the end.
+
+
+## How do i register my objects to this registry?
+
+<CodeTabs>
+    ```java !!tabs Block Register Helper
+    // Gives back the default BlockItem
+    public static Supplier<Block> registerBlockWItem(String name, Supplier<Block> block, Item.Properties properties) {
+        return registerBlockWItem(name, block, properties, BlockItem::new);
+    }
+
+    // For custom Block Items
+    public static Supplier<Block> registerBlockWItem(String name, Supplier<Block> block, Item.Properties properties,
+        BiFunction<Block, Item.Properties, ? extends BlockItem> itemFactory) {
+        Supplier<Block> registered = BLOCKS.register(name, block::get);
+        Supplier<Block> blockRegistryObject = registered::get;
+        Items.registerItem(name, () -> itemFactory.apply(blockRegistryObject.get(), properties));
+        // Return the same registryObject as the item got
+        return blockRegistryObject;
+    }
+    ```
+    ```java !!tabs Item Registry Example
+    // Register the item first, then make sure that item is the next Supplier saved.
+    public static Supplier<Item> registerItem(String name, Supplier<Item> item) {
+        Supplier<Item> registered = ITEMS.register(name, item::get);
+        return registered::get;
+    }
+    ```
+    ```java !!tabs Entity Type Example
+    EXAMPLE_ENTITY = ENTITY_TYPES.register("example_entity",
+        () -> EntityType.Builder.<ExampleEntity>of(ExampleEntity::new, MobCategory.MISC)
+        .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(Integer.MAX_VALUE)
+        .build("{YOUR_MOD_ID}" + ":" + "example_entity"));
+    ```
+</CodeTabs>
+
+As you can see there are several ways to do this, just experiment for which one works for you best!
+
+
+## Important Note
+<Callout variant="warning">
+    There is an 99% chance of an Desync if you don't register it in the right place.
+</Callout>
+For every single example i've made an example class so you can see how the registry is supposed to look. <p></p>
+Never initialize your registry in an ```static object``` always use an ```static void init``` or anything that is simulair:
+
+
+<CodeTabs>
+    ```java !!tabs Block Example
+    public class ExampleBlockRegistry {
+        public static final TravelersRegistry<Block> BLOCKS = new TravelersRegistry<>(BuiltInRegistries.BLOCK, "{YOUR_MOD_ID}");
+        public static Supplier<Block> EXAMPLE_BLOCK;
+
+        public static void init() {
+            EXAMPLE_BLOCK = registerBlockWItem("example_block", () -> new Block(BlockBehaviour.Properties.of()), new Item.Properties());
+        }
+
+        // Gives back the default BlockItem
+        public static Supplier<Block> registerBlockWItem(String name, Supplier<Block> block, Item.Properties properties) {
+            return registerBlockWItem(name, block, properties, BlockItem::new);
+        }
+
+        // For custom Block Items
+        public static Supplier<Block> registerBlockWItem(String name, Supplier<Block> block, Item.Properties properties,
+            BiFunction<Block, Item.Properties, ? extends BlockItem> itemFactory) {
+            Supplier<Block> registered = BLOCKS.register(name, block::get);
+            Supplier<Block> blockRegistryObject = registered::get;
+            ExampleItemRegistry.registerItem(name, () -> itemFactory.apply(blockRegistryObject.get(), properties));
+            // Return the same registryObject as the item got
+            return blockRegistryObject;
+        }
+    }
+    ```
+    ```java !!tabs Item Example
+    public class ExampleItemRegistry {
+        public static final TravelersRegistry<Item> ITEMS = new TravelersRegistry<>(BuiltInRegistries.ITEM, "{YOUR_MOD_ID}");
+
+        public static Supplier<Item> EXAMPLE_ITEM;
+
+        public static void init() {
+            EXAMPLE_ITEM = registerItem("example_item", () -> new Item(new Item.Properties()));
+        }
+
+        // Register the item first, then make sure that item is the next Supplier saved.
+        public static Supplier<Item> registerItem(String name, Supplier<Item> item) {
+            Supplier<Item> registered = ITEMS.register(name, item::get);
+            return registered::get;
+        }
+    }
+    ```
+    ```java !!tabs Entity Example
+    public class ExampleEntityRegistry {
+        public static final TravelersRegistry<EntityType<?>> ENTITY_TYPES = new TravelersRegistry<>(BuiltInRegistries.ENTITY_TYPE, "{YOUR_MOD_ID}");
+
+        public static Supplier<EntityType<?>> EXAMPLE_ENTITY;
+
+        public static void init() {
+            EXAMPLE_ENTITY = ENTITY_TYPES.register("example_entity",
+            () -> EntityType.Builder.<ExampleEntity>of(ExampleEntity::new, MobCategory.MISC)
+            .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(Integer.MAX_VALUE)
+            .build("{YOUR_MOD_ID}" + ":" + "example_entity"));
+        }
+    }
+    ```
+</CodeTabs>

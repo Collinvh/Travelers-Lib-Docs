@@ -1,0 +1,25 @@
+{
+    "id": "jurassic-saga",
+    "platforms": {
+        "modrinth": "travelers-lib",
+        "curseforge": "travelers-lib"
+    },
+    
+    "modid": "travelers-lib",
+    "owners": [
+        "Collinvh"
+    ],
+
+    "licenses": {
+        "project": {
+            "id": "ARR"
+        }
+    },
+
+    "versions": {
+      "1.21.1": "main",
+      "1.20.1": "main"
+    },
+
+    "schema": "1"
+}

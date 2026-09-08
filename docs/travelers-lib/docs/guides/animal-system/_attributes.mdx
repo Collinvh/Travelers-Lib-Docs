@@ -1,0 +1,278 @@
+# Attributes
+
+## Basic Properties
+The two default properties are ```animalName``` and ```modId``` <p></p>
+These are set in the constructor at all times
+
+<CodeTabs>
+    ```java !!tabs Example Attribute class
+    public class ExampleAttributes<T extends ExampleEntity> extends TravelersAnimalAttributes<T> {
+        public ExampleAttributes() {
+            super("test_entity", "{YOUR_MOD_ID}")
+        }
+    }
+    ```
+</CodeTabs>
+
+To actually apply properties you could do one of the following:
+
+<CodeTabs>
+    ```java !!tabs Really basic example
+    public class ExampleAttributes<T extends ExampleEntity> extends TravelersAnimalAttributes<T> {
+        public ExampleAttributes() {
+            super("test_entity", "{YOUR_MOD_ID}")
+            getEntityAttributeProperties().setFlyingSpeed(1.0);
+        }
+    }
+    ```
+    ```java !!tabs Another example
+    public class ExampleAttributes<T extends ExampleEntity> extends TravelersAnimalAttributes<T> {
+        public ExampleAttributes() {
+            super("test_entity", "{YOUR_MOD_ID}")
+            initAttributes(getEntityAttributeProperties());
+        }
+
+        private void initAttributes(EntityAttributeProperties<T> entityAttributeProperties) {
+            entityAttributeProperties.setFlyingSpeed(1.0);
+            entityAttributeProperties.setAttackDamage(20);
+        }
+    }
+    ```
+</CodeTabs>
+
+These two aren't the ideal situation for this, you'd ideally want to put this in the animal.
+
+
+Examples:
+<CodeTabs>
+    ```java !!tabs AbstractExampleAnimal
+    public abstract class AbstractExampleAnimal<T extends SmartAnimalBase> extends TravelersAnimal<T> {
+        public AbstractExampleAnimal(String name) {
+            super(new TravelersAnimalAttributes<>(name, "{YOUR_MOD_ID}"));
+            init();
+            // Since this is safe to do, we automatically register the entity here too!
+            TravelersAnimalRegistry.register(this);
+        }
+
+        protected void init() {
+            var animalAttributes = getAnimalAttributes();
+
+            applyTravelersProperties(animalAttributes.getEntityAttributeProperties(), animalAttributes.getEntityBaseProperties());
+        }
+
+        protected abstract void applyTravelersProperties(EntityAttributeProperties<T> attributes, EntityBaseProperties<T> base);
+    }
+    ```
+    ```java !!tabs ExampleAnimal
+    public class ExampleAnimal extends AbstractExampleAnimal<ExampleEntity>{
+        public ExampleAnimal() {
+            super("example");
+        }
+
+        @Override
+        protected void applyTravelersProperties(EntityAttributeProperties attributes, EntityBaseProperties base) {
+            attributes.setAttackDamage(20);
+
+            base.setRenderScale(2);
+        }
+    }
+    ```
+    ```java !!tabs ExampleEntity
+    public class ExampleEntity extends SmartAnimalBase {
+        public ExampleEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
+            super(entityType, level);
+        }
+
+        @Override
+        protected boolean canRunInWater() {
+            return false;
+        }
+
+        @Override
+        protected TravelersPathNavigation createNavigationController(Level level) {
+            return new TravelersGroundNavigation(this, level);
+        }
+    }
+    ```
+</CodeTabs>
+
+Now how do we store our own properties?
+
+We can make our own attributeProvider
+
+<CodeTabs>
+    ```java !!tabs Simple attribute class
+    public class ExampleAttributes {
+        private boolean shouldBeAbleToClimb = false;
+
+        public void setShouldBeAbleToClimb(boolean shouldBeAbleToClimb) {
+            this.shouldBeAbleToClimb = shouldBeAbleToClimb;
+        }
+
+        public boolean isShouldBeAbleToClimb() {
+            return shouldBeAbleToClimb;
+        }
+    }
+
+    ```
+    ```java !!tabs Example Animal Attributes
+    public class ExampleAnimalAttributes<T extends SmartAnimalBase> extends TravelersAnimalAttributes<T> {
+        private final ExampleAttributes exampleAttributes;
+
+        public ExampleAnimalAttributes(String animalName, String modId) {
+            super(animalName, modId);
+            this.exampleAttributes = new ExampleAttributes();
+        }
+
+        public ExampleAttributes getExampleAttributes() {
+            return exampleAttributes;
+        }
+    }
+
+    ```
+</CodeTabs>
+
+Now lets link this to the previous example we've made
+
+<CodeTabs>
+    ```java !!tabs AbstractExampleAnimal
+    public abstract class AbstractExampleAnimal<T extends SmartAnimalBase> extends TravelersAnimal<T> {
+        public AbstractExampleAnimal(String name) {
+            super(new ExampleAnimalAttributes<>(name, "{YOUR_MOD_ID}"));
+            init();
+            // Since this is safe to do, we automatically register the entity here too!
+            TravelersAnimalRegistry.register(this);
+        }
+
+        // Otherwise the getter wouldn't get the new attributes we've just set
+        @Override
+        public ExampleAnimalAttributes<T> getAnimalAttributes() {
+            return (ExampleAnimalAttributes<T>) super.getAnimalAttributes();
+        }
+
+        protected void init() {
+            var animalAttributes = getAnimalAttributes();
+
+            applyTravelersProperties(animalAttributes.getEntityAttributeProperties(), animalAttributes.getEntityBaseProperties());
+            applyExampleAttributes(animalAttributes.getExampleAttributes());
+        }
+
+        protected abstract void applyExampleAttributes(ExampleAttributes exampleAttributes);
+
+        protected abstract void applyTravelersProperties(EntityAttributeProperties<T> attributes, EntityBaseProperties<T> base);
+    }
+    ```
+    ```java !!tabs ExampleAnimal
+    public class ExampleAnimal extends AbstractExampleAnimal<ExampleEntity>{
+        public ExampleAnimal() {
+            super("example");
+        }
+
+        @Override
+        protected void applyTravelersProperties(EntityAttributeProperties attributes, EntityBaseProperties base) {
+            attributes.setAttackDamage(20);
+
+            base.setRenderScale(2);
+        }
+
+        @Override
+        protected void applyExampleAttributes(ExampleAttributes exampleAttributes) {
+            exampleAttributes.setShouldBeAbleToClimb(true);
+        }
+    }
+    ```
+    ```java !!tabs ExampleEntity
+    public class ExampleEntity extends SmartAnimalBase {
+        public ExampleEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
+            super(entityType, level);
+        }
+
+        @Override
+        protected boolean canRunInWater() {
+            return false;
+        }
+
+        // To reference the animal we've just made
+        @Override
+        public AbstractExampleAnimal<?> getAnimal() {
+            return (AbstractExampleAnimal<?>) super.getAnimal();
+        }
+
+        @Override
+        protected TravelersPathNavigation createNavigationController(Level level) {
+            var nav = new TravelersGroundNavigation(this, level);
+            // The example attribute we just made
+            if(getAnimal().getAnimalAttributes().getExampleAttributes().isShouldBeAbleToClimb()) {
+                nav.setCanClimb(true);
+            }
+            return nav;
+        }
+    }
+    ```
+</CodeTabs>
+
+
+## ResourceLocator
+Inside ```EntityBaseProperties```
+
+The ```ResourceLocator``` is an powerfull and easy to understand tool once you get the hang of it.
+
+There is one provided by TravelersLib:
+```GeoSingleTextureLocator``` This is the most basic locator for your entities:
+<CodeTabs>
+    ```java !!tabs GeoSingleTextureLocator
+    public class GeoSingleTextureLocator<T extends SmartAnimalBase> extends ResourceLocator<T> {
+        public ResourceLocation getTextureLocation(T entity) {
+            String entity_name = entity.getAnimal().getAnimalAttributes().getAnimalName().toLowerCase(Locale.ROOT);
+            return TravelersLib.get().handler().createLocation(this.modId, "textures/geo/animal/" + entity_name + "/" + entity_name + ".png");
+        }
+
+        public ResourceLocation getModelLocation(T entity) {
+            String entity_name = entity.getAnimal().getAnimalAttributes().getAnimalName().toLowerCase(Locale.ROOT);
+            return TravelersLib.get().handler().createLocation(this.modId, "travelers/models/" + entity_name + ".geo.json");
+        }
+
+        public ResourceLocation getAnimationLocation(T entity) {
+            String entity_name = entity.getAnimal().getAnimalAttributes().getAnimalName().toLowerCase(Locale.ROOT);
+            return TravelersLib.get().handler().createLocation(this.modId, "travelers/animations/" + entity_name + ".animation.json");
+        }
+    }
+    ```
+</CodeTabs>
+For this example:
+```
+Model -> [your_mod_id/]/travelers/models/[your_mod_id/].geo.json
+Texture -> [your_mod_id/]/textures/geo/animal/[your_mod_id/]/[your_mod_id/].png
+Animation -> [your_mod_id/]/travelers/animations/[your_mod_id/].geo.json
+```
+
+But you can also make your own textureLocators.
+
+Example:
+<CodeTabs>
+    ```java !!tabs Example
+    base.setLocator(new ResourceLocator<>() {
+        private static final ResourceLocation model = TravelersLib.get().handler().createLocation("{YOUR_MOD_ID}", "travelers/models/entity/example.geo.json");
+        private static final ResourceLocation texture = TravelersLib.get().handler().createLocation("{YOUR_MOD_ID}", "textures/geo/entity/example/example.png");
+        private static final ResourceLocation anim = TravelersLib.get().handler().createLocation("{YOUR_MOD_ID}", "travelers/animations/entity/example.animation.json");
+
+        @Override
+        public ResourceLocation getTextureLocation(ExampleEntity entity) {
+            return texture;
+        }
+
+        @Override
+        public ResourceLocation getModelLocation(ExampleEntity entity) {
+            return model;
+        }
+
+        @Override
+        public ResourceLocation getAnimationLocation(ExampleEntity entity) {
+            return anim;
+        }
+    });
+    ```
+</CodeTabs>
+
+
+In theory that should be all for the attributes, as you can see it's an powerfull but simple data-holding tool

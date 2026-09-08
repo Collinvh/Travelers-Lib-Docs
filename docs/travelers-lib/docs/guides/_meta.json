@@ -1,0 +1,22 @@
+{
+  "animal-system": {
+    "name": "Animal System",
+    "icon": "Egg"
+  },
+  "registry": {
+    "name": "Registry",
+    "icon": "Book"
+  },
+  "collision-system": {
+	"name": "Collision System",
+	"icon": "Fence"
+  },
+  "helpers": {
+	"name": "Helpers",
+	"icon": "Hammer"
+  },
+  "rendering": {
+	"name": "Rendering",
+	"icon": "Terminal"
+  }
+}

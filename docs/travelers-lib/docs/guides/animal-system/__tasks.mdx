@@ -1,0 +1,61 @@
+# Task Providers
+<Callout variant="warning">
+    Do note this continues on AFTER [**animator**](__animator), if you want to follow along start there!
+</Callout>
+
+## Basics
+
+Same as the animator all the task provider is a custom class,
+since Travelers-Lib doesn't provide any tasks, I'll use ```Jurassic Saga``` as an example again.
+<CodeTabs>
+    ```java !!tabs DilophosaurusAnimal
+    public class DilophosaurusAnimal extends AbstractJSAnimal<DilophosaurusEntity> {
+        public DilophosaurusAnimal() {
+            super("dilophosaurus");
+            setAnimator(new DilophosaurusAnimations());
+            setTaskProvider(new DilophosaurusBehaviourSet());
+        }
+    .....
+    }
+    ```
+    ```java !!tabs DilophosaurusBehaviourSet
+    public class DilophosaurusBehaviourSet extends TravelersTaskProvider<DilophosaurusEntity> {
+        @Override
+        public void registerTasks(DilophosaurusEntity entity, TravelerTaskController tasks, TravelerTaskController combat) {
+            tasks.registerTask(new JSFloatTask(entity));
+
+            tasks.registerTask(new JSFleeTask(entity, 80));
+
+            tasks.registerTask(new JSRandomStrollTask(entity).setRange(16, 9));
+            tasks.registerTask(new JSFindFoodTask(entity));
+            tasks.registerTask(new JSFindWaterTask(entity));
+
+            tasks.registerTask(new JSHerdCombatFollowTask(entity));
+            tasks.registerTask(new JSRevengeOrRunTask(entity));
+            tasks.registerTask(new DiloSpitTask(entity, 1, 40, 80, 32));
+            tasks.registerTask(new JSAttackFenceTask(entity));
+
+            tasks.registerTask(new JSRestTask(entity));
+
+            combat.registerTask(new JSTargetTask(entity, true));
+        }
+    }
+    ```
+</CodeTabs>
+
+This drives the animals tasks
+
+You might wonder, why not use goals?
+I've decided to make my own task system because i wanted more control with the priorities example:
+```java
+@Override
+public TaskPriority getPriority() {
+    double hunger = animal.getModules().getMetabolismModule().hungerPercentage();
+    if (hunger > 0.8) return TaskPriority.LOW;
+    if (hunger > 0.6) return TaskPriority.MEDIUM;
+    if (hunger > 0.4) return TaskPriority.HIGH;
+    if (hunger > 0.2) return TaskPriority.VERY_HIGH;
+    return TaskPriority.DIRECT;
+}
+```
+

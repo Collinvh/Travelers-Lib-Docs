@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+.next/
+.idea/
+.idea/discord.xml
+.idea/misc.xml
+package.json
+scripts/
