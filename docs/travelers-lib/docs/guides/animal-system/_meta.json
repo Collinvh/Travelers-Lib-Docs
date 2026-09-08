@@ -1,17 +1,7 @@
 {
-  "how_to": {
-    "name": "How to"
-  },
-  "attributes": {
-    "name": "Attributes"
-  },
-  "items": {
-    "name": "Item Interfaces"
-  },
-  "animator": {
-    "name": "Animator"
-  },
-  "tasks": {
-    "name": "Task Providers"
-  }
+    "how_to.mdx": "How to",
+    "attributes.mdx": "Attributes",
+    "items.mdx": "Item Interfaces",
+    "animator.mdx": "Animator",
+    "tasks.mdx": "Task Providers"
 }
